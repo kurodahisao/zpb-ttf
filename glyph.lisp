@@ -136,12 +136,11 @@ to look up information in various structures in the truetype file.")
 (defmethod glyph-location (index (font-loader font-loader))
   (aref (glyph-locations font-loader) index))
 
-(defgeneric location (object)
-  (:method ((glyph glyph))
-    (with-slots (font-index font-loader)
-        glyph
-      (+ (table-position "glyf" font-loader)
-         (glyph-location font-index font-loader)))))
+(defmethod location ((glyph glyph))
+  (with-slots (font-index font-loader)
+      glyph
+    (+ (table-position "glyf" font-loader)
+       (glyph-location font-index font-loader))))
 
 (defgeneric data-size (object)
   (:method ((glyph glyph))
