@@ -2,24 +2,26 @@
 * Extended version of zpb-ttf.
 #+BEGIN_SRC
 $ cd ~/projects
-$ git clone https://github.com/kurodahisao/zpb-ttf
+$ git clone https://github.com/kurodahisao/zpb-ttf2
 $ sbcl
-CL-USER> (load "~/projects/github/zpb-ttf/zpb-ttf.asd")
+CL-USER> (load "~/projects/github/zpb-ttf2/zpb-ttf2.asd")
 T
-CL-USER> (asdf:load-system :zpb-ttf)
+CL-USER> (asdf:load-system :zpb-ttf2)
 T
+CL-USER> (in-package zpb-ttf2)
+#<PACKAGE "ZPB-TTF2">
 ;;; Glyph Internal
 (with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format :latin-1 :element-type 'unsigned-byte)
   (loop with fontloader = (open-font-loader-from-stream input)
       for char in '(#\‚Ÿ #\‚  #\‚¡ #\‚¢ #\šæ)
       collect (progn (file-position input
-                        (zpb-ttf::location (zpb-ttf:find-glyph char fontloader)))
+                        (location (find-glyph char fontloader)))
                      (list char 
-                      (zpb-ttf::read-int16 input) ; number-of-contours
-                      (zpb-ttf::read-int16 input) ; xmin
-                      (zpb-ttf::read-int16 input) ; ymin
-                      (zpb-ttf::read-int16 input) ; xmax
-                      (zpb-ttf::read-int16 input) ; ymax
+                      (read-int16 input) ; number-of-contours
+                      (read-int16 input) ; xmin
+                      (read-int16 input) ; ymin
+                      (read-int16 input) ; xmax
+                      (read-int16 input) ; ymax
                       ))))
 ((#\HIRAGANA_LETTER_SMALL_A 3 369 -115 1717 1360)
  (#\HIRAGANA_LETTER_A 3 244 -74 1825 1661)
@@ -83,7 +85,7 @@ T
 
 ;;; Copy TTF Font File
 (with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format :latin-1 :element-type 'unsigned-byte)
-  (with-open-file (output "foo" :direction :output :if-exists :supersede :external-format :latin-2 :element-type 'unsigned-byte)
+  (with-open-file (output "foo" :direction :output :if-exists :supersede :external-format :latin-1 :element-type 'unsigned-byte)
     (let ((intro (make-sequence '(vector (unsigned-byte 8)) 300)))
       (read-sequence intro input)
       (write-sequence intro output))

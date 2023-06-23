@@ -32,7 +32,7 @@
 ;;;
 ;;; $Id: cmap.lisp,v 1.15 2006/03/23 22:23:32 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (deftype cmap-value-table ()
   `(array (unsigned-byte 16) (*)))

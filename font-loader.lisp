@@ -30,7 +30,7 @@
 ;;;
 ;;; $Id: font-loader.lisp,v 1.26 2006/03/23 22:21:40 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defvar *dump-character-list*)
 

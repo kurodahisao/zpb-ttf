@@ -29,7 +29,7 @@
 ;;;
 ;;; $Id: glyph.lisp,v 1.28 2007/08/08 16:21:19 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defclass glyph ()
   ((font-loader
@@ -133,7 +133,6 @@ to look up information in various structures in the truetype file.")
     (+ (advance-width object)
        (kerning-offset object next (font-loader object)))))
 
-#+ignore
 (defgeneric location (object)
   (:method ((glyph glyph))
     (with-slots (font-index font-loader)

@@ -26,7 +26,7 @@
 ;;;
 ;;; $Id: package.lisp,v 1.22 2006/03/27 21:57:37 xach Exp $
 
-(defpackage #:zpb-ttf
+(defpackage #:zpb-ttf2
   (:use #:cl)
   (:export
    ;; font loader

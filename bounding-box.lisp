@@ -29,7 +29,7 @@
 ;;;;
 ;;;; $Id: bounding-box.lisp,v 1.2 2006/02/18 23:13:43 xach Exp $
 
-(in-package :zpb-ttf)
+(in-package :zpb-ttf2)
 
 (defgeneric bounding-box (object))
 

@@ -30,7 +30,7 @@
 ;;;
 ;;; $Id: font-loader-interface.lisp,v 1.6 2006/03/23 22:20:35 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defun arrange-finalization (object stream)
   (flet ((quietly-close (&optional object)

@@ -32,7 +32,7 @@
 ;;;
 ;;; $Id: hmtx.lisp,v 1.3 2006/02/18 23:13:43 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 ;;; A longHorMetric is defined by the C structure shown here:
 ;;; struct {

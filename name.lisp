@@ -32,7 +32,7 @@
 ;;;
 ;;; $Id: name.lisp,v 1.8 2006/02/18 23:13:43 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defvar *name-identifiers*
   #(:copyright-notice
@@ -562,10 +562,10 @@ table.")
                                :name-id name-id
                                :entry-offset offset
                                :entry-length length
-                               :offset (+ table-offset values-offset offset)))
-          (loop for entry across entries
-            do (loop repeat (entry-length entry)
-                   do (vector-push-extend (read-byte stream) name-string))))))))
+                               :offset (+ table-offset values-offset offset)))))
+      (loop for entry across entries
+         do (loop repeat (entry-length entry)
+               do (vector-push-extend (read-byte stream) name-string))))))
 
 (defmethod name-entries ((font-loader font-loader))
   (name-record (name-table font-loader)))

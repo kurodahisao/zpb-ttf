@@ -32,19 +32,21 @@
 ;;;
 ;;; $Id: loca.lisp,v 1.3 2006/02/18 23:13:43 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defmethod load-loca-info ((font-loader font-loader))
   (seek-to-table "loca" font-loader)
-  (with-slots (input-stream glyph-locations glyph-count loca-offset-format loca-table)
+  (with-slots (input-stream loca-table)
       font-loader
-    (setf glyph-locations (make-array (1+ glyph-count)))
-    (dotimes (i (1+ glyph-count))
-      (setf (svref glyph-locations i)
-            (if (eql loca-offset-format :short)
-                (* (read-uint16 input-stream) 2)
-                (read-uint32 input-stream))))
-    (setf loca-table glyph-locations)))
+    (let* ((glyph-count (glyph-count font-loader))
+           (glyph-locations (make-array (1+ glyph-count))))
+      (loop with loca-offset-format = (loca-offset-format font-loader)
+          for i from 0 to glyph-count
+          do (setf (svref glyph-locations i)
+               (if (eql loca-offset-format :short)
+                   (* (read-uint16 input-stream) 2)
+                 (read-uint32 input-stream))))
+      (setf loca-table glyph-locations))))
 
 (defmethod glyph-locations ((font-loader font-loader))
   (loca-table font-loader))
@@ -52,12 +54,8 @@
 (defmethod (setf glyph-locations) (value (font-loader font-loader))
   (setf (loca-table font-loader) value))
 
-(defmethod glyph-location (index (font-loader font-loader))
-  (aref (glyph-locations font-loader) index))
-
 (defmethod glyph-length (index (font-loader font-loader))
-  (with-slots (glyph-locations)
-      font-loader
+  (let ((glyph-locations (glyph-locations font-loader)))
     (- (aref glyph-locations (1+ index))
        (aref glyph-locations index))))
 

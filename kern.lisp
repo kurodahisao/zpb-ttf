@@ -31,7 +31,7 @@
 ;;;
 ;;; $Id: kern.lisp,v 1.8 2006/03/28 14:38:37 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defun load-kerning-format-1 (table stream)
   "Return a hash table keyed on a UINT32 key that represents the glyph

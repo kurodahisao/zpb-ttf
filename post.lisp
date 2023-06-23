@@ -32,7 +32,7 @@
 ;;;
 ;;; $Id: post.lisp,v 1.7 2006/11/09 15:06:16 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defvar *standard-mac-glyph-names*
   #(".notdef"

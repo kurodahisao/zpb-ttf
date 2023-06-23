@@ -1,6 +1,6 @@
 ;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 
-(in-package "ZPB-TTF")
+(in-package "ZPB-TTF2")
 
 (defclass vhea-table ()
   ((version :initarg :version :accessor version) ; Version number of the Vertical Header Table (0x00011000 for the current version).

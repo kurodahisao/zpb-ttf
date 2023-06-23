@@ -32,7 +32,7 @@
 ;;;
 ;;; $Id: maxp.lisp,v 1.3 2006/02/18 23:13:43 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defclass maxp-table ()
   ((version :initarg :version :reader version) ; 0x00010000 (1.0)

@@ -29,7 +29,7 @@
 ;;;
 ;;; $Id: glyf.lisp,v 1.13 2006/03/23 22:22:01 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defclass control-point ()
   ((x :initarg :x :accessor x)

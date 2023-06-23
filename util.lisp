@@ -30,7 +30,7 @@
 ;;;
 ;;; $Id: util.lisp,v 1.9 2006/02/18 23:13:43 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 ;;; Reading compound MSB values from an '(unsigned-byte 8) stream
 

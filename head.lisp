@@ -32,7 +32,7 @@
 ;;;
 ;;; $Id: head.lisp,v 1.5 2006/02/18 23:13:43 xach Exp $
 
-(in-package #:zpb-ttf)
+(in-package #:zpb-ttf2)
 
 (defclass head-table ()
   ((version :initarg :version :accessor version) ; 0x00010000 if (version 1.0)

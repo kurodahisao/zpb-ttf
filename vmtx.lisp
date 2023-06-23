@@ -1,6 +1,6 @@
 ;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 
-(in-package "ZPB-TTF")
+(in-package "ZPB-TTF2")
 
 (defclass vertical-metrics-entry ()
   ((advance-height :initarg :advance-height :accessor advance-height) ; The advance height of the glyph. Signed integer in FUnits.

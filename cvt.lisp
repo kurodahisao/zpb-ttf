@@ -1,6 +1,6 @@
 ;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 
-(in-package "ZPB-TTF")
+(in-package "ZPB-TTF2")
 
 (defclass cvt--table ()
   ((binary-data :initarg :binary-data :accessor binary-data)))

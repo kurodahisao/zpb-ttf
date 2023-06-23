@@ -1,11 +1,11 @@
 ;; $Id: zpb-ttf.asd,v 1.5 2006/03/24 20:47:27 xach Exp $
 
-(defpackage #:zpb-ttf-system
+(defpackage #:zpb-ttf2-system
   (:use #:cl #:asdf))
 
-(in-package #:zpb-ttf-system)
+(in-package #:zpb-ttf2-system)
 
-(defsystem #:zpb-ttf
+(defsystem #:zpb-ttf2
   :version "1.0.4"
   :author "Zach Beane <xach@xach.com>"
   :description "Access & Dump TrueType font metrics and outlines from Common Lisp"
