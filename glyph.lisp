@@ -133,6 +133,9 @@ to look up information in various structures in the truetype file.")
     (+ (advance-width object)
        (kerning-offset object next (font-loader object)))))
 
+(defmethod glyph-location (index (font-loader font-loader))
+  (aref (glyph-locations font-loader) index))
+
 (defgeneric location (object)
   (:method ((glyph glyph))
     (with-slots (font-index font-loader)
