@@ -1,4 +1,5 @@
 ;;; Copyright (c) 2006 Zachary Beane, All Rights Reserved
+;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 ;;;
 ;;; Redistribution and use in source and binary forms, with or without
 ;;; modification, are permitted provided that the following conditions
@@ -31,39 +32,64 @@
 
 (in-package #:zpb-ttf)
 
+(defvar *dump-character-list*)
+
 (defclass font-loader ()
   ((tables :initform (make-hash-table) :reader tables)
    (input-stream :initarg :input-stream :accessor input-stream
           :documentation "The stream from which things are loaded.")
+   (scaler-type :initarg :scaler-type :reader scaler-type)
    (table-count :initarg :table-count :reader table-count)
-   ;; from the 'head' table
-   (units/em :accessor units/em)
-   (bounding-box :accessor bounding-box)
-   (loca-offset-format :accessor loca-offset-format)
-   ;; from the 'loca' table
-   (glyph-locations :accessor glyph-locations)
-   ;; from the 'cmap' table
-   (character-map :accessor character-map)
-   (inverse-character-map :accessor inverse-character-map)
-   ;; from the 'maxp' table
-   (glyph-count :accessor glyph-count)
-   ;; from the 'hhea' table
-   (ascender :accessor ascender)
-   (descender :accessor descender)
-   (line-gap :accessor line-gap)
+   (search-range :initarg :search-range :reader search-range)
+   (entry-selector :initarg :entry-selector :reader entry-selector)
+   (range-shift :initarg :range-shift :reader range-shift)
+   ;; maxp table
+   (maxp-table :initarg :maxp-table :reader maxp-table)
+   ;; from the 'head' table ; definitions were moved to head.lisp
+   ;; (units/em :accessor units/em)
+   ;; (bounding-box :accessor bounding-box)
+   ;; (loca-offset-format :accessor loca-offset-format)
+   (head-table :initarg :head-table :accessor head-table)
+   (gsub-table :initarg :gsub-table :accessor gsub-table)
+   (gdef-table :initarg :gdef-table :accessor gdef-table)
+   (os/2-table :initarg :os/2-table :accessor os/2-table)
+   (cvt--table :initarg :cvt--table :accessor cvt--table)
+   (fpgm-table :initarg :fpgm-table :accessor fpgm-table)
+   (gasp-table :initarg :gasp-table :accessor gasp-table)
+   (prep-table :initarg :prep-table :accessor prep-table)
+   (vhea-table :initarg :vhea-table :accessor vhea-table)
+   (vmtx-table :initarg :vmtx-table :accessor vmtx-table)
+   (hmtx-table :initarg :hmtx-table :accessor hmtx-table)
+   ;; from the 'loca' table ; definitions was moved to loca.lisp
+   ;; (glyph-locations :accessor glyph-locations)
+   (loca-table :initarg :loca-table :accessor loca-table)
+   ;; from the 'cmap' table ; definitions was moved to loca.lisp
+   ;; (character-map :accessor character-map)
+   ;; (inverse-character-map :accessor inverse-character-map)
+   (cmap-table :initarg :cmap-table :accessor cmap-table)
+   ;; from the 'maxp' table ; definition was moved to maxp.lisp
+   ;; (glyph-count :accessor glyph-count)
+   ;; from the 'hhea' table  ; definition was moved to hhea.lisp
+   ;; (ascender :accessor ascender)
+   ;; (descender :accessor descender)
+   ;; (line-gap :accessor line-gap)
+   (hhea-table :initarg :hhea-table :accessor hhea-table)
    ;; from the 'hmtx' table
    (advance-widths :accessor advance-widths)
    (left-side-bearings :accessor left-side-bearings)
    ;; from the 'kern' table
    (kerning-table :initform (make-hash-table) :accessor kerning-table)
-   ;; from the 'name' table
-   (name-entries :initform nil :accessor name-entries)
-   ;; from the 'post' table
-   (italic-angle :accessor italic-angle :initform 0)
-   (fixed-pitch-p :accessor fixed-pitch-p :initform nil)
-   (underline-position :accessor underline-position :initform 0)
-   (underline-thickness :accessor underline-thickness :initform 0)
-   (postscript-glyph-names :accessor postscript-glyph-names)
+   ;; from the 'name' table ; definition was moved to name.lisp
+   ;; (name-entries :initform nil :accessor name-entries)
+   (name-table :initarg :name-table :accessor name-table)
+   ;; from the 'post' table ; definitions were moved to post.lisp
+   ;; (italic-angle :accessor italic-angle :initform 0)
+   ;; (fixed-pitch-p :accessor fixed-pitch-p :initform nil)
+   ;; (underline-position :accessor underline-position :initform 0)
+   ;; (underline-thickness :accessor underline-thickness :initform 0)
+   ;; (postscript-glyph-names :accessor postscript-glyph-names)
+   (post-table :initarg :post-table :accessor post-table)
+   (glyf-table :initarg :glyf-table :accessor glyf-table)
    ;; misc
    (glyph-cache :accessor glyph-cache)
    ;; # of fonts in collection, if loaded from a ttc file
@@ -75,6 +101,7 @@
 
 (defclass table-info ()
   ((name :initarg :name :reader name)
+   (checksum :initarg :checksum :accessor checksum)
    (offset :initarg :offset :reader offset)
    (size :initarg :size :reader size)))
 

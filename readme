@@ -1,0 +1,122 @@
+# -*- mode:org; coding:cp932 -*-
+* Extended version of zpb-ttf.
+#+BEGIN_SRC
+$ cd ~/projects
+$ git clone https://github.com/kurodahisao/zpb-ttf
+$ sbcl
+CL-USER> (load "~/projects/github/zpb-ttf/zpb-ttf.asd")
+T
+CL-USER> (asdf:load-system :zpb-ttf)
+T
+;;; Glyph Internal
+(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format :latin-1 :element-type 'unsigned-byte)
+  (loop with fontloader = (open-font-loader-from-stream input)
+      for char in '(#\ぁ #\あ #\ぃ #\い #\壽)
+      collect (progn (file-position input
+                        (zpb-ttf::location (zpb-ttf:find-glyph char fontloader)))
+                     (list char 
+                      (zpb-ttf::read-int16 input) ; number-of-contours
+                      (zpb-ttf::read-int16 input) ; xmin
+                      (zpb-ttf::read-int16 input) ; ymin
+                      (zpb-ttf::read-int16 input) ; xmax
+                      (zpb-ttf::read-int16 input) ; ymax
+                      ))))
+((#\HIRAGANA_LETTER_SMALL_A 3 369 -115 1717 1360)
+ (#\HIRAGANA_LETTER_A 3 244 -74 1825 1661)
+ (#\HIRAGANA_LETTER_SMALL_I 2 324 23 1786 1135)
+ (#\HIRAGANA_LETTER_I 2 170 82 1862 1374) (#\U58FD 7 121 -148 1928 1698)) 
+
+;;;
+(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format :latin-1 :element-type 'unsigned-byte)
+  (let ((loader (open-font-loader-from-stream input)))
+    (loop for char in '(#\1 #\a #\ぁ #\あ #\ぃ #\い #\壽)
+        for glyph = (find-glyph char loader)
+        for index = (font-index glyph)
+        collect (list char (read-contours-at-index index loader)))))
+((#\1
+  #(#(#<CONTROL-POINT 283,111*> #<CONTROL-POINT 283,158*>
+      ....)))
+ (#\a
+  #(#(#<CONTROL-POINT 675,711*> #<CONTROL-POINT 675,741*>
+      ....)
+    #(#<CONTROL-POINT 675,653*> #<CONTROL-POINT 259,589>
+      ....)))
+ (#\HIRAGANA_LETTER_SMALL_A
+  #(#(#<CONTROL-POINT 1168,805*> #<CONTROL-POINT 1159,842>
+      ....)
+    #(#<CONTROL-POINT 1170,745*> #<CONTROL-POINT 1044,737>
+      ....)
+    #(#<CONTROL-POINT 832,248*> #<CONTROL-POINT 832,279*>
+      ....)))
+ (#\HIRAGANA_LETTER_A
+  #(#(#<CONTROL-POINT 1190,1008*> #<CONTROL-POINT 1178,1052>
+      ....)
+    #(#<CONTROL-POINT 1194,942*> #<CONTROL-POINT 1043,933>
+      ....)
+    #(#<CONTROL-POINT 793,334*> #<CONTROL-POINT 789,502>
+      ....)))
+ (#\HIRAGANA_LETTER_SMALL_I
+  #(#(#<CONTROL-POINT 908,602*> #<CONTROL-POINT 883,543*>
+      ....)
+    #(#<CONTROL-POINT 1315,1079*> #<CONTROL-POINT 1522,966>
+      ....)))
+ (#\HIRAGANA_LETTER_I
+  #(#(#<CONTROL-POINT 844,743*> #<CONTROL-POINT 682,395>
+      ....)
+    #(#<CONTROL-POINT 1313,1317*> #<CONTROL-POINT 1593,1160>
+      ....)))
+ (#\U58FD
+  #(#(#<CONTROL-POINT 447,393*> #<CONTROL-POINT 728,393*>
+      .....)
+    #(#<CONTROL-POINT 422,342*> #<CONTROL-POINT 422,108*>
+      ....)
+    #(#<CONTROL-POINT 1051,934*> #<CONTROL-POINT 1051,788*>
+      ....)
+    #(#<CONTROL-POINT 934,1325*> #<CONTROL-POINT 934,1479*>
+      ....)
+    #(#<CONTROL-POINT 1563,340*> #<CONTROL-POINT 1563,8*>
+      ....)
+    #(#<CONTROL-POINT 1039,330*> #<CONTROL-POINT 1258,246>
+      ....)
+    #(#<CONTROL-POINT 1684,1157*> #<CONTROL-POINT 1768,1251*>
+      ....))))
+
+;;; Copy TTF Font File
+(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format :latin-1 :element-type 'unsigned-byte)
+  (with-open-file (output "foo" :direction :output :if-exists :supersede :external-format :latin-2 :element-type 'unsigned-byte)
+    (let ((intro (make-sequence '(vector (unsigned-byte 8)) 300)))
+      (read-sequence intro input)
+      (write-sequence intro output))
+    (loop for (name offset size) in '(("GDEF" 300 30)
+                                      ("GSUB" 332 3518)
+                                      ("OS/2" 3852 96)
+                                      ("cmap" 3948 236166) ; t 2
+                                      ("cvt " 240116 204)
+                                      ("fpgm" 240320 113)
+                                      ("gasp" 240436 16)
+                                      ("glyf" 240452 7530768) ;t 1
+                                      ("head" 7771220 54) ;t
+                                      ("hhea" 7771276 36) ;t
+                                      ("hmtx" 7771312 50600) ;t
+                                      ("loca" 7821912 50916) ;t 4
+                                      ("maxp" 7872828 32) ;t
+                                      ("name" 7872860 2438) ;t
+                                      ("post" 7875300 120451) ;t 3
+                                      ("prep" 7995752 10) 
+                                      ("vhea" 7995764 36) 
+                                      ("vmtx" 7995800 50910))
+        do (let ((seq (make-sequence '(vector (unsigned-byte 8)) size)))
+             (file-position input offset)
+             (file-position output offset)
+             (read-sequence seq input)
+             (write-sequence seq output)))
+    (loop for byte = (read-byte input nil nil)
+        while byte do
+          (write-byte byte output))))
+;;; $ cmp ~/foo /usr/share/fonts/ipam.ttf
+#+END_SRC
+* ttf font の load と dump
+cl-pdfの擴張機能として、fontの壓縮機能が必要となったため、
+originalのzpb-ttfに手を入れて、load した font の dump が出來るやうにした。
+~glyph.lisp~ の ~dump-glyf-info~ に於いて、 ~*dump-character-list*~ が束縛されてゐる場合、
+そのcharacterに對應するglyphだけをdumpするやうにしてある。

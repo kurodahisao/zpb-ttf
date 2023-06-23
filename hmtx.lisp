@@ -1,4 +1,5 @@
 ;;; Copyright (c) 2006 Zachary Beane, All Rights Reserved
+;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 ;;;
 ;;; Redistribution and use in source and binary forms, with or without
 ;;; modification, are permitted provided that the following conditions
@@ -33,14 +34,59 @@
 
 (in-package #:zpb-ttf)
 
+;;; A longHorMetric is defined by the C structure shown here:
+;;; struct {
+;;;     uint16 advanceWidth;
+;;;     int16 leftSideBearing;
+;;; }
+(defclass long-hor-metric ()
+  ((advance-width :initarg :advance-width :accessor advance-width)
+   (left-side-bearing :initarg :left-side-bearing :accessor left-side-bearing)))
+
+(defclass hmtx-table ()
+  ((h-metrics :initarg :h-metrics :accessor h-metrics) ; [numOfLongHorMetrics] The value numOfLongHorMetrics comes from the 'hhea' table. If the font is monospaced, only one entry need be in the array but that entry is required.
+   (left-side-bearing :initarg :left-side-bearing :accessor left-side-bearing))) ; [] Here the advanceWidth is assumed to be the same as the advanceWidth for the last entry above. The number of entries in this array is derived from the total number of glyphs minus numOfLongHorMetrics. This generally is used with a run of monospaced glyphs (e.g. Kanji fonts or Courier fonts). Only one run is allowed and it must be at the end.
+
 (defmethod load-hmtx-info ((font-loader font-loader))
-  (let* ((horizontal-metrics-count (horizontal-metrics-count font-loader))
-         (advance-widths (make-array horizontal-metrics-count))
-         (left-side-bearings (make-array horizontal-metrics-count)))
-    (seek-to-table "hmtx" font-loader)
-    (with-slots (input-stream) font-loader
-      (dotimes (i horizontal-metrics-count)
-        (setf (svref advance-widths i) (read-uint16 input-stream))
-        (setf (svref left-side-bearings i) (read-int16 input-stream))))
-    (setf (advance-widths font-loader) advance-widths
-          (left-side-bearings font-loader) left-side-bearings)))
+  (seek-to-table "hmtx" font-loader)
+  (let ((horizontal-metrics-count (horizontal-metrics-count font-loader))
+        #+ignore (left-side-bearing-count (- (glyph-count font-loader) horizontal-metrics-count))) ; ??
+    (with-slots (input-stream hmtx-table)
+        font-loader
+      (let ((start-pos (file-position input-stream))
+            (table-size (table-size "hmtx" font-loader)))
+        (setf hmtx-table (make-instance 'hmtx-table
+                           :h-metrics (make-array horizontal-metrics-count)
+                           :left-side-bearing (make-array 0 :fill-pointer t :adjustable t)))
+        (loop with h-metrics = (h-metrics hmtx-table)
+            for i from 0 below (length h-metrics)
+            for long-hor-metric = (make-instance 'long-hor-metric
+                                    :advance-width (read-uint16 input-stream)
+                                    :left-side-bearing (read-int16 input-stream))
+            do (setf (svref h-metrics i) long-hor-metric))
+        ;; ?? for i from 0 below (length left-side-bearing) ??
+        (loop with max-size = (- table-size (- (file-position input-stream) start-pos))
+            with left-side-bearing = (left-side-bearing hmtx-table)
+            for size from 0 by 2 below max-size
+            do (vector-push-extend (read-fword input-stream) left-side-bearing))))))
+
+(defmethod dump-hmtx-info ((font-loader font-loader) output-stream)
+  (let ((table-position (table-position "hmtx" font-loader))
+        (file-position (file-position output-stream)))
+    (unless (= table-position file-position)
+      (warn "Table `hmtx' position is missing ~A (~A)." table-position file-position)
+      (seek-to-table "hmtx" font-loader)))
+  (let ((start-pos (file-position output-stream)))
+    (with-slots (hmtx-table)
+        font-loader
+      (loop for i from 0 below (horizontal-metrics-count font-loader)
+          for long-hor-metric across (h-metrics hmtx-table)
+          do (write-uint16 (advance-width long-hor-metric) output-stream)
+             (write-uint16 (left-side-bearing long-hor-metric) output-stream))
+      #+ignore ;; ??
+      (loop for left-side-bearing across (left-side-bearing hmtx-table)
+          do (write-fword left-side-bearing output-stream)))
+    (let ((end-pos (align-file-position output-stream)))
+      (prog1
+          end-pos
+        (change-table-size "hmtx" (- end-pos start-pos) font-loader)))))

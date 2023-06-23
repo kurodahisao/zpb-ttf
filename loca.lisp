@@ -1,4 +1,5 @@
 ;;; Copyright (c) 2006 Zachary Beane, All Rights Reserved
+;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 ;;;
 ;;; Redistribution and use in source and binary forms, with or without
 ;;; modification, are permitted provided that the following conditions
@@ -35,14 +36,21 @@
 
 (defmethod load-loca-info ((font-loader font-loader))
   (seek-to-table "loca" font-loader)
-  (with-slots (input-stream glyph-locations glyph-count loca-offset-format)
+  (with-slots (input-stream glyph-locations glyph-count loca-offset-format loca-table)
       font-loader
     (setf glyph-locations (make-array (1+ glyph-count)))
     (dotimes (i (1+ glyph-count))
       (setf (svref glyph-locations i)
             (if (eql loca-offset-format :short)
                 (* (read-uint16 input-stream) 2)
-                (read-uint32 input-stream))))))
+                (read-uint32 input-stream))))
+    (setf loca-table glyph-locations)))
+
+(defmethod glyph-locations ((font-loader font-loader))
+  (loca-table font-loader))
+
+(defmethod (setf glyph-locations) (value (font-loader font-loader))
+  (setf (loca-table font-loader) value))
 
 (defmethod glyph-location (index (font-loader font-loader))
   (aref (glyph-locations font-loader) index))
@@ -52,3 +60,22 @@
       font-loader
     (- (aref glyph-locations (1+ index))
        (aref glyph-locations index))))
+
+(defmethod dump-loca-info ((font-loader font-loader) output-stream)
+  (let ((table-position (table-position "loca" font-loader))
+        (file-position (file-position output-stream)))
+    (unless (= table-position file-position)
+      (warn "Table `loca' position is missing ~A (~A)." table-position file-position)
+      (seek-to-table "loca" font-loader)))
+  (let ((start-pos (file-position output-stream)))
+    (with-slots (loca-table)
+        font-loader
+      (loop with loca-offset-format = (loca-offset-format font-loader)
+          for location across loca-table
+          do (if (eql loca-offset-format :short)
+                 (write-uint16 (/ location 2) output-stream)
+               (write-uint32 location output-stream))))
+    (let ((end-pos (align-file-position output-stream)))
+      (prog1
+          end-pos
+        (change-table-size "loca" (- end-pos start-pos) font-loader)))))

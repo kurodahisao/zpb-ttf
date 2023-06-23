@@ -1,4 +1,5 @@
 ;;; Copyright (c) 2006 Zachary Beane, All Rights Reserved
+;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 ;;;
 ;;; Redistribution and use in source and binary forms, with or without
 ;;; modification, are permitted provided that the following conditions
@@ -33,19 +34,97 @@
 
 (in-package #:zpb-ttf)
 
+(defclass hhea-table ()
+  ((version :initarg :version :reader version) ; 0x00010000 (1.0)
+   (ascent :initarg :ascent :reader ascent) ; Distance from baseline of highest ascender
+   (descent :initarg :descent :reader descent) ; Distance from baseline of lowest descender
+   (line-gap :initarg :line-gap :reader line-gap) ; typographic line gap
+   (advance-width-max :initarg :advance-width-max :reader advance-width-max) ; must be consistent with horizontal metrics
+   (min-left-side-bearing :initarg :min-left-side-bearing :reader min-left-side-bearing) ; must be consistent with horizontal metrics
+   (min-right-side-bearing :initarg :min-right-side-bearing :reader min-right-side-bearing) ; must be consistent with horizontal metrics
+   (x-max-extent :initarg :x-max-extent :reader x-max-extent) ; max(lsb + (xMax-xMin))
+   (caret-slope-rise :initarg :caret-slope-rise :reader caret-slope-rise) ; used to calculate the slope of the caret (rise/run) set to 1 for vertical caret
+   (caret-slope-run :initarg :caret-slope-run :reader caret-slope-run) ; 0 for vertical
+   (caret-offset :initarg :caret-offset :reader caret-offset) ; set value to 0 for non-slanted fonts
+   (reserved1 :initarg :reserved1 :reader reserved1) ; set value to 0
+   (reserved2 :initarg :reserved2 :reader reserved2) ; set value to 0
+   (reserved3 :initarg :reserved3 :reader reserved3) ; set value to 0
+   (reserved4 :initarg :reserved4 :reader reserved4) ; set value to 0
+   (metric-data-format :initarg :metric-data-format :reader metric-data-format) ; 0 for current format
+   (num-of-long-hor-metrics :initarg :num-of-long-hor-metrics :accessor num-of-long-hor-metrics))) ; number of advance widths in metrics table
+
 (defmethod load-hhea-info ((font-loader font-loader))
   (seek-to-table "hhea" font-loader)
-  (with-slots (input-stream ascender descender line-gap)
+  (with-slots (input-stream hhea-table)
       font-loader
     (let ((version (read-fixed input-stream)))
-      (check-version "\"hhea\" table" version #x00010000))
-    (setf ascender (read-fword input-stream)
-          descender (read-fword input-stream)
-          line-gap (read-fword input-stream))))
+      (setf hhea-table
+        (make-instance 'hhea-table
+          :version (prog1 version
+                     (check-version "\"hhea\" table" version #x00010000))
+          :ascent (read-fword input-stream)
+          :descent (read-fword input-stream)
+          :line-gap (read-fword input-stream)
+          :advance-width-max (read-ufword input-stream)
+          :min-left-side-bearing (read-fword input-stream)
+          :min-right-side-bearing (read-fword input-stream)
+          :x-max-extent (read-fword input-stream)
+          :caret-slope-rise (read-int16 input-stream)
+          :caret-slope-run (read-int16 input-stream)
+          :caret-offset (read-fword input-stream)
+          :reserved1 (read-int16 input-stream)
+          :reserved2 (read-int16 input-stream)
+          :reserved3 (read-int16 input-stream)
+          :reserved4 (read-int16 input-stream)
+          :metric-data-format (read-int16 input-stream)
+          :num-of-long-hor-metrics (read-uint16 input-stream))))))
+
+
+(defmethod ascender ((font-loader font-loader))
+  (ascent (hhea-table font-loader)))
+
+(defmethod descender ((font-loader font-loader))
+  (descent (hhea-table font-loader)))
+
+(defmethod line-gap ((font-loader font-loader))
+  (line-gap (hhea-table font-loader)))
 
 (defmethod horizontal-metrics-count ((font-loader font-loader))
-  (seek-to-table "hhea" font-loader)
-  (with-slots (input-stream) font-loader
-    ;; Skip to the end, since all we care about is the last item
-    (advance-file-position input-stream 34)
-    (read-uint16 input-stream)))
+  (with-slots (input-stream hhea-table)
+      font-loader
+    (num-of-long-hor-metrics hhea-table)))
+
+(defmethod (setf horizontal-metrics-count) (value (font-loader font-loader))
+  (with-slots (input-stream hhea-table)
+      font-loader
+    (setf (num-of-long-hor-metrics hhea-table) value)))
+
+(defmethod dump-hhea-info ((font-loader font-loader) output-stream)
+  (let ((table-position (table-position "hhea" font-loader))
+        (file-position (file-position output-stream)))
+    (unless (= table-position file-position)
+      (warn "Table `hhea' position is missing ~A (~A)." table-position file-position)
+      (seek-to-table "hhea" font-loader)))
+  (when (boundp '*dump-character-list*)
+    (setf (horizontal-metrics-count font-loader)
+      (1+ (loop for index in (character-to-glyph-indexes *dump-character-list* font-loader)
+              maximize index))))
+  (with-slots (hhea-table)
+      font-loader
+    (write-fixed (version hhea-table) output-stream)
+    (write-fword (ascent hhea-table) output-stream)
+    (write-fword (descent hhea-table) output-stream)
+    (write-fword (line-gap hhea-table) output-stream)
+    (write-ufword (advance-width-max hhea-table) output-stream)
+    (write-fword (min-left-side-bearing hhea-table) output-stream)
+    (write-fword (min-right-side-bearing hhea-table) output-stream)
+    (write-fword (x-max-extent hhea-table) output-stream)
+    (write-int16 (caret-slope-rise hhea-table) output-stream)
+    (write-int16 (caret-slope-run hhea-table) output-stream)
+    (write-fword (caret-offset hhea-table) output-stream)
+    (write-int16 (reserved1 hhea-table) output-stream)
+    (write-int16 (reserved2 hhea-table) output-stream)
+    (write-int16 (reserved3 hhea-table) output-stream)
+    (write-int16 (reserved4 hhea-table) output-stream)
+    (write-int16 (metric-data-format hhea-table) output-stream)
+    (write-uint16 (num-of-long-hor-metrics hhea-table) output-stream)))

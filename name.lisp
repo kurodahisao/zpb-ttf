@@ -1,4 +1,5 @@
 ;;; Copyright (c) 2006 Zachary Beane, All Rights Reserved
+;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 ;;;
 ;;; Redistribution and use in source and binary forms, with or without
 ;;; modification, are permitted provided that the following conditions
@@ -502,6 +503,28 @@ table.")
       (initialize-name-entry name-entry))
     (%octets name-entry)))
 
+(defclass name-table ()
+  ((name-format :initarg :name-format :accessor name-format) ; Format selector. Set to 0.
+   (name-count :initarg :name-count :accessor name-count) ; The number of nameRecords in this name table.
+   (string-offset :initarg :string-offset :accessor string-offset) ; Offset in bytes to the beginning of the name character strings.
+   (name-record :initarg :name-record :accessor name-record) ; The name records array.
+   (name-string :initarg :name-string :accessor name-string))) ; The character strings of the names. Note that these are not necessarily ASCII!
+
+(defclass name-entry ()
+  ((font-loader :initarg :font-loader :accessor font-loader)
+   (platform-id :initarg :platform-id :accessor platform-id)
+   (encoding-id :initarg :encoding-id :accessor encoding-id)
+   (language-id :initarg :language-id :accessor language-id)
+   (name-id :initarg :name-id :accessor name-id)
+   (entry-offset :initarg :entry-offset :accessor entry-offset)
+   (offset :initarg :offset :accessor offset :documentation "The octet offset within the TrueType file stream
+of the entry's data. *Not* the same as the offset in the NameRecord
+structure, which is relative to the start of the string data for the
+table.")
+   (entry-length :initarg :entry-length :accessor entry-length)
+   (value :reader %value :writer (setf value))
+   (octets :reader %octets :writer (setf octets))))
+
 (defun load-name-info (loader)
   (seek-to-table "name" loader)
   (let* ((stream (input-stream loader))
@@ -514,8 +537,15 @@ table.")
              :expected-values (list 0)))
     (let* ((count (read-uint16 stream))
            (values-offset (read-uint16 stream))
-           (entries (make-array count)))
-      (setf (name-entries loader) entries)
+           (entries (make-array count))
+           (name-string (make-array 0 :element-type '(unsigned-byte 8) :fill-pointer t :adjustable t))
+             (name-table (make-instance 'name-table 
+                           :name-format format
+                           :name-count count
+                           :string-offset values-offset
+                           :name-record entries
+                           :name-string name-string)))
+      (setf (name-table loader) name-table)
       (dotimes (i count)
         (let ((platform-id (read-uint16 stream))
               (encoding-id (read-uint16 stream))
@@ -530,8 +560,37 @@ table.")
                                :encoding-id encoding-id
                                :language-id language-id
                                :name-id name-id
+                               :entry-offset offset
                                :entry-length length
-                               :offset (+ table-offset values-offset offset))))))))
+                               :offset (+ table-offset values-offset offset)))
+          (loop for entry across entries
+            do (loop repeat (entry-length entry)
+                   do (vector-push-extend (read-byte stream) name-string))))))))
+
+(defmethod name-entries ((font-loader font-loader))
+  (name-record (name-table font-loader)))
+
+(defmethod dump-name-info ((font-loader font-loader) output-stream)
+  (let ((table-position (table-position "name" font-loader))
+        (file-position (file-position output-stream)))
+    (unless (= table-position file-position)
+      (warn "Table `name' position is missing ~A (~A)." table-position file-position)
+      (seek-to-table "name" font-loader)))
+  (with-slots (name-table)
+      font-loader
+    (write-uint16 (name-format name-table) output-stream)
+    (write-uint16 (name-count name-table) output-stream)
+    (write-uint16 (string-offset name-table) output-stream)
+    (loop for name-entry across (name-record name-table)
+        do (write-uint16 (platform-id name-entry) output-stream)
+           (write-uint16 (encoding-id name-entry) output-stream)
+           (write-uint16 (language-id name-entry) output-stream)
+           (write-uint16 (name-id name-entry) output-stream)
+           (write-uint16 (entry-length name-entry) output-stream)
+           (write-uint16 (entry-offset name-entry) output-stream))
+    (loop for byte across (name-string name-table)
+        do (write-byte byte output-stream)))
+  (align-file-position output-stream))
 
 ;;;
 ;;; Fetching info out of the name-entry vector

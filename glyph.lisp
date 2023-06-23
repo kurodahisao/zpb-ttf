@@ -82,6 +82,7 @@ to look up information in various structures in the truetype file.")
 
 ;;; Glyph-specific values determined from data in the font-loader
 
+#+ignore
 (defgeneric left-side-bearing (object)
   (:method ((glyph glyph))
     (bounded-aref (left-side-bearings (font-loader glyph))
@@ -116,6 +117,7 @@ to look up information in various structures in the truetype file.")
   (declare (ignore left right font-loader))
   0)
 
+#+ignore
 (defgeneric advance-width (object)
   (:method ((glyph glyph))
     (bounded-aref (advance-widths (font-loader glyph))
@@ -131,6 +133,7 @@ to look up information in various structures in the truetype file.")
     (+ (advance-width object)
        (kerning-offset object next (font-loader object)))))
 
+#+ignore
 (defgeneric location (object)
   (:method ((glyph glyph))
     (with-slots (font-index font-loader)

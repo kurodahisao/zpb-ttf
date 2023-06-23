@@ -1,4 +1,5 @@
 ;;; Copyright (c) 2006 Zachary Beane, All Rights Reserved
+;;; Copyright (c) 2016 KURODA Hisao, All Rights Reserved
 ;;;
 ;;; Redistribution and use in source and binary forms, with or without
 ;;; modification, are permitted provided that the following conditions
@@ -331,3 +332,187 @@ information."
       (if (= contour-count -1)
           (read-compound-contours loader)
           (read-simple-contours contour-count stream)))))
+
+(defclass glyf-table ()
+  ((number-of-contours :initarg :number-of-contours :accessor number-of-contours) ; If the number of contours is positive or zero, it is a single glyph;
+                                        ; If the number of contours less than zero, the glyph is compound
+   (xmin :initarg :xmin :accessor xmin) ; Minimum x for coordinate data
+   (ymin :initarg :ymin :accessor ymin) ; Minimum y for coordinate data
+   (xmax :initarg :xmax :accessor xmax) ; Maximum x for coordinate data
+   (ymax :initarg :ymax :accessor ymax) ; Maximum y for coordinate data
+   (glyph :initarg :glyph :accessor glyph))) ; (here follow the data for the simple or compound glyph)
+
+(defclass simple-glyph ()
+  ((end-pts-of-contours :initarg :end-pts-of-contours :accessor end-pts-of-contours) ; Array of last points of each contour ; n is the number of contours; array entries are point indices
+   (instruction-length :initarg :instruction-length :accessor instruction-length) ; Total number of bytes needed for instructions
+   (instructions :initarg :instructions :accessor instructions) ; Array of instructions for this glyph
+   (flags :initarg :flags :accessor flags) ; Array of flags
+   (xcoordinates :initarg :xcoordinates :accessor xcoordinates) ; Array of x-coordinates ; the first is relative to (0,0), others are relative to previous point
+   (ycoordinates :initarg :ycoordinates :accessor ycoordinates))) ; Array of y-coordinates ; the first is relative to (0,0), others are relative to previous point
+
+(defmethod load-glyf-info ((font-loader font-loader))
+  (seek-to-table "glyf" font-loader)
+  (with-slots (input-stream glyf-table)
+      font-loader
+    (loop with start-pos = (file-position input-stream)
+        with glyphs = (make-array 0 :fill-pointer t :adjustable t)
+        with last-location = (aref (glyph-locations font-loader)
+                                   (glyph-count font-loader))
+        for i from 0
+        for location across (glyph-locations font-loader)
+        when (< location last-location)
+        do (file-position input-stream (+ start-pos location))
+           (let ((number-of-contours (read-int16 input-stream))
+                 (xmin (read-fword input-stream))
+                 (ymin (read-fword input-stream))
+                 (xmax (read-fword input-stream))
+                 (ymax (read-fword input-stream)))
+             (unless (>= number-of-contours 0)
+               (error "Coumound Contours (contour-count=~A) not yet supported." number-of-contours))
+             (when (= location          ; if location = nextlocation, it has no glyph.
+                      (aref (glyph-locations font-loader) (1+ i)))
+               ;; (format t "Glyph ~Ath and ~Ath have the same location ~A.~%" i (1+ i) location)
+               (setq number-of-contours 0))
+             (let* ((end-pts-of-contours (read-simple-vector input-stream number-of-contours '(unsigned-byte 16) #'read-uint16))
+                    (instruction-length (if (= 0 number-of-contours)
+                                            0
+                                          (read-fword input-stream)))
+                    (instructions (read-simple-vector input-stream instruction-length '(unsigned-byte 8) #'read-uint8))
+                    (n-points (if (= 0 number-of-contours)
+                                  0
+                                (1+ (aref end-pts-of-contours (1- number-of-contours)))))
+                    (flags (read-flag-vector input-stream n-points))
+                    (xcoordinates (read-points-vector input-stream flags n-points :x))
+                    (ycoordinates (read-points-vector input-stream flags n-points :y)))
+               (when (and (= number-of-contours 0) (/= instruction-length 0))
+                 (error "Contradicted number-of-contours & instruction-length ~A,~A" number-of-contours instruction-length))
+               (vector-push-extend (make-instance 'glyf-table
+                                     :number-of-contours number-of-contours
+                                     :xmin xmin
+                                     :ymin ymin
+                                     :xmax xmax
+                                     :ymax ymax
+                                     :glyph (make-instance 'simple-glyph
+                                              :end-pts-of-contours end-pts-of-contours
+                                              :instruction-length instruction-length
+                                              :instructions instructions
+                                              :flags flags
+                                              :xcoordinates xcoordinates
+                                              :ycoordinates ycoordinates))
+                                   glyphs)))
+        finally (progn
+                  (setf glyf-table glyphs)
+                  (let ((end-pos (align-file-position input-stream))
+                        (end-pos-expected (+ start-pos (table-size "glyf" font-loader))))
+                    (when (/= end-pos end-pos-expected)
+                      (error "Something wrong with Glyf Load ~A /= ~A expected." end-pos end-pos-expected)))))))
+
+(defun read-simple-vector (stream n element-type read-function)
+  (loop with vector = (make-array n :element-type element-type :fill-pointer 0)
+      repeat n
+      do (vector-push (funcall read-function stream) vector)
+      finally (return vector)))
+
+(defun read-flag-vector (stream n-points)
+  (loop with vector = (make-array n-points :element-type '(unsigned-byte 8))
+      for i from 0 below n-points
+      for flag-byte = (setf (aref vector i) (read-uint8 stream))
+      when (logbitp 3 flag-byte) do
+        (loop repeat (read-uint8 stream)
+            do (setf (aref vector (incf i)) flag-byte))
+      finally (return vector)))
+
+
+(defmethod dump-glyf-info ((font-loader font-loader) output-stream)
+  (let ((table-position (table-position "glyf" font-loader))
+        (file-position (file-position output-stream)))
+    (unless (= table-position file-position)
+      (warn "Table `glyf' position is missing ~A (~A)." table-position file-position)
+      (seek-to-table "glyf" font-loader)))
+  (with-slots (glyf-table)
+      font-loader
+    (let ((start-pos (file-position output-stream))
+          (locations (glyph-locations font-loader)))
+      (if (boundp '*dump-character-list*)
+          (loop with indexes = (cons 0 (character-to-glyph-indexes *dump-character-list* font-loader))
+              for i from 0
+              for location = (align-position (file-position output-stream) 4)
+              for glyph across glyf-table
+              do (setf (aref locations i) (- location start-pos))
+                 (when (member i indexes)
+                   (dump-glyph-location glyph location output-stream))
+              finally (setf (aref locations i) (- location start-pos)))
+        (loop for location across locations
+            for glyph across glyf-table
+            do (dump-glyph-location glyph (+ start-pos location) output-stream)))
+      (let ((end-pos (align-file-position output-stream))
+            (end-pos-expected (+ start-pos (table-size "glyf" font-loader))))
+        (when (/= end-pos end-pos-expected)
+          (warn "Glyf Dump size differ ~A /= ~A expected." end-pos end-pos-expected))
+        (prog1
+            end-pos
+          (change-table-size "glyf" (- end-pos start-pos) font-loader))))))
+
+(defun dump-glyph-location (glyph location output-stream)
+  (unless (= (number-of-contours glyph) 0)
+    (file-position output-stream location)
+    (write-int16 (number-of-contours glyph) output-stream)
+    (write-fword (xmin glyph) output-stream)
+    (write-fword (ymin glyph) output-stream)
+    (write-fword (xmax glyph) output-stream)
+    (write-fword (ymax glyph) output-stream)
+    (let ((simple-glyph (glyph glyph)))
+      (dump-simple-vector output-stream (end-pts-of-contours simple-glyph) #'write-uint16)
+      (write-fword (instruction-length simple-glyph) output-stream)
+      (dump-simple-vector output-stream (instructions simple-glyph) #'write-uint8)
+      (dump-flag-vector output-stream (flags simple-glyph))
+      (dump-points-vector output-stream (xcoordinates simple-glyph) (flags simple-glyph) :x)
+      (dump-points-vector output-stream (ycoordinates simple-glyph) (flags simple-glyph) :y))))
+
+#+ignore
+(defun dump-null-glyph (glyph location output-stream)
+  (declare (ignore glyph))
+  (file-position output-stream location)
+  (write-int16 0 output-stream)
+  (write-fword 0 output-stream)
+  (write-fword 0 output-stream)
+  (write-fword 0 output-stream)
+  (write-fword 0 output-stream))
+
+(defun character-to-glyph-indexes (char-list font-loader)
+  (sort (mapcar #'(lambda (char)
+                    (font-index (find-glyph char font-loader)))
+                char-list)
+        #'<))
+
+(defun dump-simple-vector (stream vector write-function)
+  (loop for elm across vector
+      do (funcall write-function elm stream)))
+
+(defun dump-flag-vector (stream flags)
+  (loop with max-index = (length flags)
+      for i from 0 below max-index
+      for flag-byte = (aref flags i)
+      do (write-uint8 flag-byte stream)
+         (when (logbitp 3 flag-byte)
+           (loop for repeat from 0
+               for j = (incf i)
+               for next = (and (< j max-index) (aref flags j))
+               while (eql flag-byte next)
+               finally (progn
+                         (decf i)
+                         (write-uint8 repeat stream))))))
+
+(defun dump-points-vector (stream points flags axis)
+  (let ((short-index (if (eql axis :x) 1 2))
+        (same-index (if (eql axis :x) 4 5)))
+    (loop for flag across flags
+        for point across points
+        for short-p = (logbitp short-index flag)
+        for same-p = (logbitp same-index flag)
+        do (cond (short-p
+                  (write-uint8 (if same-p point (- point)) stream))
+                 (t
+                  (if same-p
+                      (assert (= point 0))
+                    (write-int16 point stream)))))))

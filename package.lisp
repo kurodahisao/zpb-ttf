@@ -83,5 +83,9 @@
    #:left-side-bearing
    #:right-side-bearing
    #:kerning-offset
-   #:string-bounding-box))
+   #:string-bounding-box
+   ;; glyph dump
+   "OPEN-FONT-LOADER-FROM-STREAM"
+   "DUMP-FONT-LOADER-TO-STREAM"
+   "*DUMP-CHARACTER-LIST*"))
 

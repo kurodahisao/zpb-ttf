@@ -6,9 +6,9 @@
 (in-package #:zpb-ttf-system)
 
 (defsystem #:zpb-ttf
-  :version "1.0.3"
+  :version "1.0.4"
   :author "Zach Beane <xach@xach.com>"
-  :description "Access TrueType font metrics and outlines from Common Lisp"
+  :description "Access & Dump TrueType font metrics and outlines from Common Lisp"
   :license "BSD"
   :components ((:file "package")
                (:file "util"
@@ -76,6 +76,51 @@
                                    "glyf"
                                    "kern"
                                    "loca"))
+               (:file "cvt"
+                      :depends-on ("package"
+                                   "util"
+                                   "loca"
+                                   "font-loader"))
+               (:file "fpgm"
+                      :depends-on ("package"
+                                   "loca"
+                                   "util"
+                                   "font-loader"))
+               (:file "gasp"
+                      :depends-on ("package"
+                                   "util"
+                                   "loca"
+                                   "font-loader"))
+               (:file "gdef"
+                      :depends-on ("package"
+                                   "util"
+                                   "loca"
+                                   "font-loader"))
+               (:file "gsub"
+                      :depends-on ("package"
+                                   "loca"
+                                   "util"
+                                   "font-loader"))
+               (:file "os-2"
+                      :depends-on ("package"
+                                   "util"
+                                   "loca"
+                                   "font-loader"))
+               (:file "prep"
+                      :depends-on ("package"
+                                   "util"
+                                   "loca"
+                                   "font-loader"))
+               (:file "vhea"
+                      :depends-on ("package"
+
+                                   "loca""util"
+                                   "font-loader"))
+               (:file "vmtx"
+                      :depends-on ("package"
+                                   "util"
+                                   "loca"
+                                   "font-loader"))
                (:file "font-loader-interface"
                       :depends-on ("package"
                                    "util"
@@ -89,6 +134,16 @@
                                    "cmap"
                                    "post"
                                    "hhea"
-                                   "hmtx"))))
+                                   "hmtx"
+                                   "cvt"
+                                   "fpgm"
+                                   "gasp"
+                                   "gdef"
+                                   "gsub"
+                                   "os-2"
+                                   "prep"
+                                   "vhea"
+                                   "vmtx"
+                                   "glyf"))))
 
 
