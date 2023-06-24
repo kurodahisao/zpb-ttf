@@ -11,7 +11,7 @@ T
 CL-USER> (in-package zpb-ttf2)
 #<PACKAGE "ZPB-TTF2">
 ;;; Glyph Internal
-(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format :latin-1 :element-type 'unsigned-byte)
+(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format +octets+ :element-type 'unsigned-byte)
   (loop with fontloader = (open-font-loader-from-stream input)
       for char in '(#\‚Ÿ #\‚  #\‚¡ #\‚¢ #\šæ)
       collect (progn (file-position input
@@ -29,7 +29,7 @@ CL-USER> (in-package zpb-ttf2)
  (#\HIRAGANA_LETTER_I 2 170 82 1862 1374) (#\U58FD 7 121 -148 1928 1698)) 
 
 ;;;
-(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format :latin-1 :element-type 'unsigned-byte)
+(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format +octets+ :element-type 'unsigned-byte)
   (let ((loader (open-font-loader-from-stream input)))
     (loop for char in '(#\1 #\a #\‚Ÿ #\‚  #\‚¡ #\‚¢ #\šæ)
         for glyph = (find-glyph char loader)
@@ -84,8 +84,8 @@ CL-USER> (in-package zpb-ttf2)
       ....))))
 
 ;;; Copy TTF Font File
-(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format :latin-1 :element-type 'unsigned-byte)
-  (with-open-file (output "foo" :direction :output :if-exists :supersede :external-format :latin-1 :element-type 'unsigned-byte)
+(with-open-file (input "/usr/share/fonts/ipam.ttf" :external-format +octets+ :element-type 'unsigned-byte)
+  (with-open-file (output "foo" :direction :output :if-exists :supersede :external-format +octets+ :element-type 'unsigned-byte)
     (let ((intro (make-sequence '(vector (unsigned-byte 8)) 300)))
       (read-sequence intro input)
       (write-sequence intro output))

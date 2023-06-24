@@ -228,3 +228,5 @@ element in the vector."
 
 (defun char-to-charname (font-loader character-name-list)
   (mapcar #'(lambda (c) (postscript-name (find-glyph c font-loader))) character-name-list))
+
+(defparameter +octets+ #+allegro :octets #-allegro :latin-1)
